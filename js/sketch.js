@@ -16,7 +16,7 @@ function setup() {
 }
 
 function mouseClicked() {
-  if (mouseX > 0 && mouseX < w && mouseY > 0 && mouseY < h) {
+  if (RANDOM && mouseX > 0 && mouseX < w && mouseY > 0 && mouseY < h) {
     addCity(mouseX, mouseY);
     numCities = cities.length;
   }
