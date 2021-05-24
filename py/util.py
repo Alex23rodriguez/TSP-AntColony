@@ -2,19 +2,21 @@ from random import random
 
 
 def distSq(p1, p2):
-    dx = p1['x'] - p2['x']
-    dy = p1['y'] - p2['y']
+    dx = p1[0] - p2[0]
+    dy = p1[1] - p2[1]
     return dx*dx + dy*dy
 
 
 def getDist(p1, p2):
-    dx = p1['x'] - p2['x']
-    dy = p1['y'] - p2['y']
+    dx = p1[0] - p2[0]
+    dy = p1[1] - p2[1]
     return (dx*dx + dy*dy)**0.5
 
 
 def normalizedArray(arr):
     s = sum(arr)
+    if s == 0:
+        return
     return [x/s for x in arr]
 
 
@@ -25,6 +27,7 @@ def pick(desirability):
         s += d
         if r < s:
             return i
+    return len(desirability) - 1
 
 
 def all_dists(cities):

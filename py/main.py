@@ -1,63 +1,36 @@
-# %%
-from random import random, randint
-from util import all_dists
+from simulator import Simulator
 import json
+import numpy as np
 
-import util
-from importlib import reload
-reload(util)
-
-
-# %%
 COUNTRIES = ['Canada', 'Argentina', 'Luxemburgo',
              'Oman', 'Qatar', 'Uruguay', 'Zimbabwe']
-# %%
-
-# %%
 
 
-def make_data(cnt):
-    jsn = json.load(open(f'json_data/{cnt}.json', 'r'))
-    return {
-        "country": cnt,
-        "cities": jsn,
-        "distances": all_dists(jsn),
-        "n": len(jsn)
-    }
+# TODO: change to inline argument
+COUNTRY = COUNTRIES[4]  # Qatar
 
+data = json.load(open(f'data/{COUNTRY}.json', 'r'))
 
-def make_profile(data, num_ants, num_gen, dst_power, pheromone_power):
-    return {
-        'data': data,
-        'num_ants': num_ants,
-        'num_gen': num_gen,
-        'dst_power': dst_power,
-        'pheromone_power': pheromone_power
-    }
+# default parameters
+params = {
+    'num_ants': 20,
+    'dst_power': 4,
+    'phero_power': 1,
+    'init_phero': 1,
+    'phero_intensity': 10,
+    'phero_resilience': 0.7,
+    'max_phero': 200
+}
 
+test_param = 'dst_power'
+repeat = 5
 
-# %%
-ALL_COUNTRIES = dict(
-    (cnt, make_data(cnt)) for cnt in COUNTRIES)
+# Simulation
+for val in np.linspace(3, 6, 10):
+    params['dst_power'] = val
+    for _ in range(repeat):
+        s = Simulator(data, params)
+        s.run_k_gens(30, verbose=False)
+        print(f'dst_power: {val}, best: {s.best_eval}')
 
-
-# %%
-fake = [
-    {'x': 0, 'y': 0},
-    {'x': 3, 'y': 4},
-    {'x': 9, 'y': 12},
-]
-
-# %%
-data = make_data("Canada")
-# %%
-p1 = make_profile(data, 3, 10, 2, 2)
-# %%
-
-
-def one_gen(data, num_ants, pheromone_trails):
-    ants = [randint(0, len(data['n'])) for _ in range(num_ants)]
-
-    for _ in range(data['n']):
-
-        pass
+        s.save(f'states/{s.country}_{round(s.best_eval, 2)}.json')
