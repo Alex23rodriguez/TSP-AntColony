@@ -1,6 +1,7 @@
 from simulator import Simulator
 import json
 import numpy as np
+from stats import save_state_if_best, add_stat
 
 COUNTRIES = ['Canada', 'Argentina', 'Luxemburgo',
              'Oman', 'Qatar', 'Uruguay', 'Zimbabwe']
@@ -13,7 +14,7 @@ data = json.load(open(f'data/{COUNTRY}.json', 'r'))
 
 # default parameters
 params = {
-    'num_ants': 20,
+    'num_ants': 25,
     'dst_power': 4,
     'phero_power': 1,
     'init_phero': 1,
@@ -22,15 +23,18 @@ params = {
     'max_phero': 200
 }
 
-test_param = 'dst_power'
+test_param = 'phero_resilience'
 repeat = 5
 
 # Simulation
-for val in np.linspace(3, 6, 10):
-    params['dst_power'] = val
+for val in np.linspace(0.5, 0.95, 10):
+    params[test_param] = val
     for _ in range(repeat):
         s = Simulator(data, params)
-        s.run_k_gens(30, verbose=False)
-        print(f'dst_power: {val}, best: {s.best_eval}')
+        s.run_k_gens(30, updates=100, verbose=False)
+        print(f'{test_param}: {val}, best: {s.best_eval}')
 
-        s.save(f'states/{s.country}_{round(s.best_eval, 2)}.json')
+        state = s.save()
+        save_state_if_best(
+            state, f'states/{s.country}_{round(s.best_eval, 2)}.json')
+        add_stat(state)
