@@ -4,7 +4,7 @@ from random import randint
 from matplotlib import pyplot
 import json
 from copy import deepcopy
-
+from time import time
 
 '''
 params example:
@@ -26,12 +26,14 @@ class Simulator:
         self.cities = data['cities']
         self.dists = data['distances']
         self.n = data['n']
-        self.set_params(params, True)
+        self.set_params(params)
+        self.reset()
         self.update_pow_dists()
 
         # self.best_state = {}
 
     def run_k_gens(self, k, updates=10, verbose=True):
+        start_time = time()
         for _ in range(k):
             if(self.gen % updates == 0):
                 print(f'gen {self.gen}')
@@ -57,6 +59,12 @@ class Simulator:
             self.add_phero(self.best_path)
 
             self.gen += 1
+        rt = time() - start_time
+        self.run_time += rt
+        if verbose:
+            print(f'Run time: {round(rt, 2)}')
+            if self.run_time != rt:
+                print(f'Total run time: {round(self.run_time, 2)}')
 
     def update_trails(self, new_trails):
         # add new trails
@@ -105,12 +113,10 @@ class Simulator:
         s += sum(self.dists[a][b] for a, b in zip(path, path[1:]))
         return s
 
-    def set_params(self, params, reset=False, update_pow_dists=True):
+    def set_params(self, params, update_pow_dists=True):
         self.params = params
         if update_pow_dists:
             self.update_pow_dists()
-        if reset:
-            self.reset()
 
     def summary(self):
         print('params:')
@@ -142,6 +148,7 @@ class Simulator:
 
     def reset(self):
         self.gen = 0
+        self.run_time = 0
         self.phero_trails = [[self.params['init_phero']
                               for _ in range(self.n)] for _ in range(self.n)]
         self.all_best = []
