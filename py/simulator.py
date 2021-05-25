@@ -1,4 +1,5 @@
 # from tsp_util import eval_path
+from hashlib import new
 from util import normalizedArray, pick
 from random import randint
 from matplotlib import pyplot
@@ -9,13 +10,13 @@ from time import time
 '''
 params example:
 {
-    'num_ants': 10,
-    'dst_power': 2,
+    'num_ants': 20,
+    'dst_power': 4,
     'phero_power': 1,
     'init_phero': 1,
-    'phero_intensity': 10,
     'phero_resilience': 0.7,
-    'max_phero': 50
+    'vote_power': 1,
+    'phero_supply': 1  # supply per node
 }
 '''
 
@@ -35,14 +36,15 @@ class Simulator:
     def run_k_gens(self, k, updates=10, verbose=True):
         start_time = time()
         for _ in range(k):
-            if(self.gen % updates == 0):
+            if(verbose and self.gen % updates == 0):
                 print(f'gen {self.gen}')
 
+            # simulate ants
             trails = [self.simulate_ant()
                       for _ in range(self.params['num_ants'])]
 
             # update pheromone trails
-            self.update_trails(trails)
+            self.update_phero(trails)
             # update best and avg
             gen_evals = [self.eval_path(t) for t in trails]
             gen_best = min(gen_evals)
@@ -55,8 +57,6 @@ class Simulator:
                 if verbose:
                     print(f'new best! gen{self.gen}, val: {self.best_eval}')
                 # self.best_state = self.save()
-            # keep best path pheromones high
-            self.add_phero(self.best_path)
 
             self.gen += 1
         rt = time() - start_time
@@ -65,27 +65,6 @@ class Simulator:
             print(f'Run time: {round(rt, 2)}')
             if self.run_time != rt:
                 print(f'Total run time: {round(self.run_time, 2)}')
-
-    def update_trails(self, new_trails):
-        # add new trails
-        for tr in new_trails:
-            self.add_phero(tr)
-
-        # evaporate previous trails
-        self.phero_trails = [
-            [x*self.params['phero_resilience'] for x in tr] for tr in self.phero_trails
-        ]
-
-        # cap at max_phero
-        self.phero_trails = [
-            [min(x, self.params['max_phero']) for x in tr]
-            for tr in self.phero_trails
-        ]
-
-    def add_phero(self, trail):
-        for i, j in zip(trail, trail[1:] + [trail[0]]):
-            self.phero_trails[i][j] += self.params['phero_intensity']
-            self.phero_trails[j][i] += self.params['phero_intensity']
 
     def simulate_ant(self):
         city = randint(0, self.n-1)
@@ -127,7 +106,7 @@ class Simulator:
         pyplot.plot(*zip(*enumerate(self.avg)))
         pyplot.legend(('best', 'average'),
                       loc='upper right')
-        # pyplot.ylim(0, None)
+        pyplot.ylim(8000, 20000)
         self.draw_path()
 
     def draw_path(self, path=None, nums=False):
@@ -164,6 +143,7 @@ class Simulator:
         self.best_eval = sim_state['best_eval']
         self.best_path = sim_state['best_path']
         self.gen = sim_state['gen']
+        self.run_time = sim_state['runtime']
         self.set_params(sim_state['params'])
 
     def save(self, filename=None):
@@ -175,20 +155,40 @@ class Simulator:
             'best_path': self.best_path.copy(),
             'gen': self.gen,
             'params': deepcopy(self.params),
-            'country': self.country
+            'country': self.country,
+            'runtime': self.run_time
         }
 
         if filename is None:
             return state
-
         json.dump(state, open(filename, 'w'))
-
-    def restore_pheromones(self):
-        self.phero_trails = [[self.params['init_phero']
-                              for _ in range(self.n)] for _ in range(self.n)]
-
-        self.add_phero(self.best_path)
 
     def update_pow_dists(self):
         self.pow_dists = [[d**-self.params['dst_power'] if d != 0 else 0
                            for d in row] for row in self.dists]
+
+    def update_phero(self, trails):
+        # evaporate previous phero
+        self.phero_trails = [
+            [x*self.params['phero_resilience'] for x in tr] for tr in self.phero_trails
+        ]
+
+        # evaluate this gen's paths
+        evals = [self.eval_path(tr) for tr in trails]
+        worst = min(evals)
+        vote_power = [(e/worst)**self.params['vote_power'] for e in evals]
+
+        # count votes
+        new_trails = [[0 for _ in range(self.n)] for _ in range(self.n)]
+        for trail, vote in zip(trails, vote_power):
+            for i, j in zip(trail, trail[1:] + [trail[0]]):
+                new_trails[i][j] += vote
+                new_trails[j][i] += vote
+
+        # normalize
+        new_trails = [normalizedArray(
+            tr, self.params['phero_supply']*self.n) for tr in new_trails]
+
+        # add to phero_trails
+        self.phero_trails = [
+            [x+y for x, y in zip(t1, t2)] for t1, t2 in zip(self.phero_trails, new_trails)]
