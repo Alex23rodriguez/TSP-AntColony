@@ -27,8 +27,9 @@ class Simulator:
         self.dists = data['distances']
         self.n = data['n']
         self.set_params(params, True)
+        self.update_pow_dists()
 
-        self.best_state = {}
+        # self.best_state = {}
 
     def run_k_gens(self, k, updates=10, verbose=True):
         for _ in range(k):
@@ -51,7 +52,7 @@ class Simulator:
                 self.best_path = trails[gen_evals.index(gen_best)]
                 if verbose:
                     print(f'new best! gen{self.gen}, val: {self.best_eval}')
-                self.best_state = self.save()
+                # self.best_state = self.save()
             # keep best path pheromones high
             self.add_phero(self.best_path)
 
@@ -81,12 +82,13 @@ class Simulator:
     def simulate_ant(self):
         city = randint(0, self.n-1)
         path = [city]
+        visited = set([city])
 
         for _ in range(self.n-1):
+
             desir = [
                 # desirability based on distance
-                ((self.dists[city][i] ** -self.params['dst_power']
-                  ) if i not in path else 0)
+                (self.pow_dists[city][i] if i not in visited else 0)
                 # desirability based on pheromones
                 * (self.phero_trails[city][i] ** self.params['phero_power'])
                 # for each city
@@ -95,6 +97,7 @@ class Simulator:
 
             city = pick(normalizedArray(desir))
             path.append(city)
+            visited.add(city)
         return path
 
     def eval_path(self, path, closed=True):
@@ -102,8 +105,10 @@ class Simulator:
         s += sum(self.dists[a][b] for a, b in zip(path, path[1:]))
         return s
 
-    def set_params(self, params, reset=False):
+    def set_params(self, params, reset=False, update_pow_dists=True):
         self.params = params
+        if update_pow_dists:
+            self.update_pow_dists()
         if reset:
             self.reset()
 
@@ -114,6 +119,9 @@ class Simulator:
         print(self.best_eval)
         pyplot.plot(*zip(*enumerate(self.all_best)))
         pyplot.plot(*zip(*enumerate(self.avg)))
+        pyplot.legend(('best', 'average'),
+                      loc='upper right')
+        # pyplot.ylim(0, None)
         self.draw_path()
 
     def draw_path(self, path=None, nums=False):
@@ -173,3 +181,7 @@ class Simulator:
                               for _ in range(self.n)] for _ in range(self.n)]
 
         self.add_phero(self.best_path)
+
+    def update_pow_dists(self):
+        self.pow_dists = [[d**-self.params['dst_power'] if d != 0 else 0
+                           for d in row] for row in self.dists]
